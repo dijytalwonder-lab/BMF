@@ -10,20 +10,26 @@ export default class ShoppingListScene extends Phaser.Scene {
 
     create() {
 
+        // Fade in
         this.cameras.main.fadeIn(400, 0, 0, 0);
 
-        this.cameras.main.setBackgroundColor("#BDEBFF");
+        // Background
+        this.add.image(
+            240,
+            400,
+            "homeBackground"
+        );
 
-        // Title
+        // Scene Title
         this.add.text(
             240,
-            100,
+            70,
             "Today's Shopping List",
             {
                 fontFamily: "Arial",
                 fontSize: "34px",
-                color: "#4A2E16",
-                fontStyle: "bold"
+                fontStyle: "bold",
+                color: "#4A2E16"
             }
         ).setOrigin(0.5);
 
@@ -32,43 +38,181 @@ export default class ShoppingListScene extends Phaser.Scene {
             .Shuffle([...ITEMS])
             .slice(0, 3);
 
-        // Save game data
         GameData.shoppingList = shoppingList;
-
-        // IMPORTANT:
-        // Always start with an empty basket.
         GameData.collectedItems = [];
 
-        // Build display text
-        let listText = "";
+        //-----------------------------------
+        // Bunny
+        //-----------------------------------
 
-        shoppingList.forEach(item => {
+        this.bunny = this.add.image(
+            -80,
+            585,
+            "bunny"
+        );
 
-            listText += `${item.emoji} ${item.name}\n\n`;
+        this.bunny.setScale(0.22);
+
+        this.tweens.add({
+
+            targets: this.bunny,
+
+            x: 135,
+
+            duration: 700,
+
+            ease: "Back.easeOut",
+
+            onComplete: () => {
+
+                this.tweens.add({
+
+                    targets: this.bunny,
+
+                    y: 580,
+
+                    duration: 900,
+
+                    yoyo: true,
+
+                    repeat: -1,
+
+                    ease: "Sine.easeInOut"
+
+                });
+
+            }
 
         });
 
-        // Shopping list
-        this.add.text(
-            240,
-            280,
-            listText,
-            {
-                fontFamily: "Arial",
-                fontSize: "30px",
-                color: "#333333",
-                align: "center"
-            }
-        ).setOrigin(0.5);
+        //-----------------------------------
+        // Parchment
+        //-----------------------------------
 
-        // Start button
+        this.paper = this.add.image(
+
+            330,
+            355,
+
+            "shoppingParchment"
+
+        );
+
+        this.paper.setScale(0);
+
+        this.time.delayedCall(700, () => {
+
+            this.tweens.add({
+
+                targets: this.paper,
+
+                scale: 0.62,
+
+                duration: 450,
+
+                ease: "Back.easeOut"
+
+            });
+
+        });
+
+        //-----------------------------------
+        // Parchment Title
+        //-----------------------------------
+
+        this.time.delayedCall(1100, () => {
+
+            this.add.text(
+
+                330,
+                235,
+
+                "Shopping List",
+
+                {
+
+                    fontFamily: "Arial",
+
+                    fontSize: "24px",
+
+                    fontStyle: "bold",
+
+                    color: "#5A3E1B"
+
+                }
+
+            ).setOrigin(0.5);
+
+        });
+
+        //-----------------------------------
+        // Shopping Items
+        //-----------------------------------
+
+        shoppingList.forEach((item, index) => {
+
+            this.time.delayedCall(
+
+                1400 + index * 250,
+
+                () => {
+
+                    const row = this.add.text(
+
+                        250,
+
+                        285 + index * 55,
+
+                        `${item.emoji}   ${item.name}`,
+
+                        {
+
+                            fontFamily: "Arial",
+
+                            fontSize: "24px",
+
+                            color: "#333333"
+
+                        }
+
+                    );
+
+                    row.setAlpha(0);
+
+                    row.y += 15;
+
+                    this.tweens.add({
+
+                        targets: row,
+
+                        alpha: 1,
+
+                        y: row.y - 15,
+
+                        duration: 250
+
+                    });
+
+                }
+
+            );
+
+        });
+
+        //-----------------------------------
+        // Start Button
+        //-----------------------------------
+
         const startButton = this.add.rectangle(
+
             240,
-            650,
+            710,
+
             240,
             70,
-            0x7ED957,
-            1
+
+            0x7ED957
+
         );
 
         startButton.setStrokeStyle(
@@ -77,19 +221,51 @@ export default class ShoppingListScene extends Phaser.Scene {
         );
 
         const startText = this.add.text(
+
             240,
-            650,
+            710,
+
             "Start Journey",
+
             {
+
                 fontFamily: "Arial",
+
                 fontSize: "28px",
-                color: "#ffffff",
+
+                color: "#FFFFFF",
+
                 fontStyle: "bold"
+
             }
+
         ).setOrigin(0.5);
 
+        startButton.setAlpha(0);
+        startText.setAlpha(0);
+
+        this.time.delayedCall(2400, () => {
+
+            this.tweens.add({
+
+                targets: [startButton, startText],
+
+                alpha: 1,
+
+                duration: 350
+
+            });
+
+        });
+
+        //-----------------------------------
+        // Button Animation
+        //-----------------------------------
+
         startButton.setInteractive({
+
             useHandCursor: true
+
         });
 
         startButton.on("pointerover", () => {
@@ -140,18 +316,11 @@ export default class ShoppingListScene extends Phaser.Scene {
 
                 onComplete: () => {
 
-                    this.cameras.main.fadeOut(
-                        400,
-                        0,
-                        0,
-                        0
-                    );
+                    this.cameras.main.fadeOut(400, 0, 0, 0);
 
                     this.time.delayedCall(400, () => {
 
-                        this.scene.start(
-                            "MagicalTreeScene"
-                        );
+                        this.scene.start("MagicalTreeScene");
 
                     });
 

@@ -8,351 +8,145 @@ export default class MagicalTreeScene extends Phaser.Scene {
 
     create() {
 
-        this.fadeIn();
+    this.cameras.main.fadeIn(700, 0, 0, 0);
 
-        this.createBackground();
-        this.createTitle();
+    //------------------------------------------------
+    // Background
+    //------------------------------------------------
 
-        this.createHouse();
-        this.createTree();
-        this.createSparkles();
+    this.background = this.add.image(
+        240,
+        400,
+        "homeBackground"
+    );
+    this.background.setDepth(0);
 
-        this.createPortal();
-        this.createBunny();
+    //------------------------------------------------
+    // Tree
+    //------------------------------------------------
 
-        this.walkToTree();
+    this.tree = this.add.image(
+        250,
+        430,
+        "magicalTree"
+    );
 
-    }
+    this.tree.setScale(0.55);
+    this.tree.setDepth(5);
 
-    fadeIn() {
+    //------------------------------------------------
+    // Bunny
+    //------------------------------------------------
 
-        this.cameras.main.fadeIn(500, 0, 0, 0);
+    this.bunny = this.add.image(
+        -70,
+        590,
+        "bunny"
+    );
 
-    }
+    this.bunny.setScale(0.22);
+    this.bunny.setDepth(20);
 
-    createBackground() {
+    this.tweens.add({
 
-        const bg = this.add.image(
-            240,
-            400,
-            "homeBackground"
-        );
+        targets: this.bunny,
 
-        bg.setDepth(0);
+        x: 120,
 
-    }
+        duration: 1500,
 
-    createTitle() {
+        ease: "Sine.easeOut"
 
-        this.add.text(
-            240,
-            70,
-            "🌳 The Wishing Tree",
-            {
-                fontFamily: "Arial",
-                fontSize: "34px",
-                color: "#2E4A22",
-                fontStyle: "bold",
-                stroke: "#FFFFFF",
-                strokeThickness: 4
-            }
-        )
-        .setOrigin(0.5)
-        .setDepth(20);
+    });
 
-    }
+    //------------------------------------------------
+    // Fairy
+    //------------------------------------------------
 
-    createHouse() {
+    this.fairy = this.add.image(
+        240,
+        -80,
+        "fairy"
+    );
 
-        this.house = this.add.image(
-            70,
-            610,
-            "bunnyHouse"
-        );
+    this.fairy.setScale(0.18);
+    this.fairy.setAlpha(0);
+    this.fairy.setDepth(30);
 
-        this.house.setScale(0.18);
-        this.house.setDepth(2);
+    //------------------------------------------------
+    // Fairy enters
+    //------------------------------------------------
 
-    }
-
-    createTree() {
-
-        this.tree = this.add.image(
-            240,
-            470,
-            "magicalTree"
-        );
-
-        this.tree.setScale(0.42);
-        this.tree.setDepth(3);
-
-        this.tweens.add({
-
-            targets: this.tree,
-
-            scaleX: 0.425,
-            scaleY: 0.415,
-
-            duration: 1500,
-
-            yoyo: true,
-
-            repeat: -1,
-
-            ease: "Sine.easeInOut"
-
-        });
-
-    }
-
-    createSparkles() {
-
-        for (let i = 0; i < 12; i++) {
-
-            const sparkle = this.add.circle(
-                Phaser.Math.Between(140, 340),
-                Phaser.Math.Between(240, 560),
-                Phaser.Math.Between(2, 4),
-                0xFFF7A8
-            );
-
-            sparkle.setDepth(4);
-            sparkle.setAlpha(0);
-
-            this.tweens.add({
-
-                targets: sparkle,
-
-                alpha: 1,
-
-                duration: Phaser.Math.Between(500, 900),
-
-                delay: Phaser.Math.Between(0, 2000),
-
-                y: sparkle.y - Phaser.Math.Between(15, 35),
-
-                yoyo: true,
-
-                repeat: -1,
-
-                ease: "Sine.easeInOut"
-
-            });
-
-        }
-
-    }
-
-    createPortal() {
-
-        this.portal = this.add.image(
-            240,
-            300,
-            "cloudPortal"
-        );
-
-        this.portal.setScale(0);
-        this.portal.setAlpha(0);
-        this.portal.setDepth(6);
-
-    }
-
-    createBunny() {
-
-        this.bunny = this.add.image(
-            -80,
-            620,
-            "bunny"
-        );
-
-        this.bunny.setScale(0.22);
-        this.bunny.setDepth(10);
-
-    }
-
-    walkToTree() {
-
-        this.tweens.add({
-
-            targets: this.bunny,
-
-            x: 165,
-
-            duration: 2500,
-
-            ease: "Linear",
-
-            onComplete: () => {
-
-                this.showFairy();
-
-            }
-
-        });
-
-    }
-
-    showFairy() {
-
-        this.fairy = this.add.image(
-            240,
-            -100,
-            "fairy"
-        );
-
-        this.fairy.setScale(0.18);
-        this.fairy.setDepth(8);
+    this.time.delayedCall(1700, () => {
 
         this.tweens.add({
 
             targets: this.fairy,
 
-            y: 220,
+            y: 170,
+            alpha: 1,
 
-            duration: 1500,
+            duration: 1200,
 
             ease: "Sine.easeOut",
 
             onComplete: () => {
 
-                this.floatFairy();
+                // Floating animation
+                this.tweens.add({
 
-                this.time.delayedCall(400, () => {
+                    targets: this.fairy,
 
-                    this.showWelcomeDialogue();
+                    y: 160,
+
+                    duration: 900,
+
+                    yoyo: true,
+
+                    repeat: -1,
+
+                    ease: "Sine.easeInOut"
 
                 });
 
+                this.showDialogue();
+
             }
 
         });
 
+    });
+
+}
+
+    //----------------------------------------------------
+    // Fairy Dialogue
+    //----------------------------------------------------
+
+    showDialogue(){
+
+        this.dialogue = this.add.text(
+    240,
+    90,
+    "Good luck, Luna!\nLet's visit the Cloud Lake!",
+    {
+        fontFamily: "Arial",
+        fontSize: "24px",
+        align: "center",
+        color: "#FFFFFF",
+        stroke: "#4A3A24",
+        strokeThickness: 5
     }
+)
+.setOrigin(0.5)
+.setDepth(50);
+        //----------------------------------------
+        // Keep dialogue for 3 seconds
+        //----------------------------------------
 
-    floatFairy() {
+        this.time.delayedCall(3000,()=>{
 
-        this.tweens.add({
-
-            targets: this.fairy,
-
-            y: 210,
-
-            duration: 1200,
-
-            yoyo: true,
-
-            repeat: -1,
-
-            ease: "Sine.easeInOut"
-
-        });
-
-        this.tweens.add({
-
-            targets: this.fairy,
-
-            alpha: 0.85,
-
-            duration: 900,
-
-            yoyo: true,
-
-            repeat: -1
-
-        });
-
-    }
-
-    createDialogue(text) {
-
-        const panel = this.add.rectangle(
-            240,
-            730,
-            420,
-            110,
-            0xFFFFFF,
-            0.95
-        );
-
-        panel.setStrokeStyle(4, 0x8B6B3F);
-        panel.setDepth(20);
-
-        const dialogue = this.add.text(
-            240,
-            730,
-            text,
-            {
-                fontFamily: "Arial",
-                fontSize: "24px",
-                color: "#4A3A24",
-                align: "center",
-                wordWrap: {
-                    width: 360
-                }
-            }
-        )
-        .setOrigin(0.5)
-        .setDepth(21);
-
-        return {
-            panel,
-            dialogue
-        };
-
-    }
-
-    showWelcomeDialogue() {
-
-        this.dialogue = this.createDialogue(
-            "Hello Luna! ✨\nThe clouds are waiting for you."
-        );
-
-        this.time.delayedCall(2500, () => {
-
-            this.startBlessing();
-
-        });
-
-    }
-
-    startBlessing() {
-
-        this.dialogue.panel.destroy();
-        this.dialogue.dialogue.destroy();
-
-        this.dialogue = this.createDialogue(
-            "May your fishing basket be full! 🌟"
-        );
-
-        this.tweens.add({
-
-            targets: this.bunny,
-
-            alpha: 0.4,
-
-            duration: 250,
-
-            yoyo: true,
-
-            repeat: 7
-
-        });
-
-        this.tweens.add({
-
-            targets: this.fairy,
-
-            angle: 12,
-
-            duration: 180,
-
-            yoyo: true,
-
-            repeat: 5
-
-        });
-
-        this.time.delayedCall(1800, () => {
+            this.dialogue.destroy();
 
             this.openPortal();
 
@@ -360,57 +154,98 @@ export default class MagicalTreeScene extends Phaser.Scene {
 
     }
 
-    openPortal() {
+    //----------------------------------------------------
+    // Portal
+    //----------------------------------------------------
+
+    openPortal(){
+
+        this.portal=this.add.image(
+
+            370,
+            250,
+
+            "cloudPortal"
+
+        );
+
+        this.portal.setScale(0);
+
+        this.portal.setDepth(10);
+
+        //----------------------------------------
+        // Portal grows once
+        //----------------------------------------
 
         this.tweens.add({
 
-            targets: this.portal,
+            targets:this.portal,
 
-            alpha: 1,
+            scale:0.45,
 
-            scale: 0.45,
+            duration:900,
 
-            duration: 1200,
+            ease:"Back.easeOut"
 
-            ease: "Back.Out",
+        });
 
-            onComplete: () => {
+        //----------------------------------------
+        // Slow rotation only
+        //----------------------------------------
 
-                this.flyToPortal();
+        this.tweens.add({
 
-            }
+            targets:this.portal,
+
+            angle:360,
+
+            duration:18000,
+
+            repeat:-1,
+
+            ease:"Linear"
+
+        });
+
+        //----------------------------------------
+        // Bunny enters portal after 1.5 sec
+        //----------------------------------------
+
+        this.time.delayedCall(1500,()=>{
+
+            this.enterPortal();
 
         });
 
     }
 
-    flyToPortal() {
+    //----------------------------------------------------
+    // Bunny enters portal
+    //----------------------------------------------------
 
-        // Move behind the portal only near the end
-        this.time.delayedCall(1500, () => {
-
-            this.bunny.setDepth(5);
-
-        });
+    enterPortal(){
 
         this.tweens.add({
 
-            targets: this.bunny,
+            targets:this.bunny,
 
-            x: 240,
-            y: 300,
+            x:365,
 
-            scale: 0.12,
+            y:255,
 
-            angle: 25,
+            scaleX:0.02,
 
-            alpha: 0.2,
+            scaleY:0.02,
 
-            duration: 1800,
+            angle:20,
 
-            ease: "Sine.easeInOut",
+            duration:2200,
 
-            onComplete: () => {
+            ease:"Sine.easeInOut",
+
+            onComplete:()=>{
+
+                this.bunny.setVisible(false);
 
                 this.finishScene();
 
@@ -420,21 +255,25 @@ export default class MagicalTreeScene extends Phaser.Scene {
 
     }
 
-    finishScene() {
+    //----------------------------------------------------
+    // Finish
+    //----------------------------------------------------
 
-        this.cameras.main.fadeOut(
-            600,
-            255,
-            255,
-            255
-        );
+    finishScene(){
 
-        this.time.delayedCall(600, () => {
+        this.time.delayedCall(700,()=>{
 
-            this.scene.start("FishingScene");
+            this.cameras.main.fadeOut(700,0,0,0);
+
+            this.time.delayedCall(700,()=>{
+
+                this.scene.start("FishingScene");
+
+            });
 
         });
 
     }
+
 
 }
