@@ -4,6 +4,9 @@ node_modules/
 # Build output
 dist/
 
+# Android build artifacts
+*.apk
+
 # Logs
 npm-debug.log*
 

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Bunny\'s Magical Fishing</string>
+    <string name="title_activity_main">Bunny\'s Magical Fishing</string>
+    <string name="package_name">com.bunny.fishing</string>
+    <string name="custom_url_scheme">com.bunny.fishing</string>
+</resources>

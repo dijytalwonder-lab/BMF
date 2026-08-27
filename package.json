@@ -13,9 +13,12 @@
   "license": "ISC",
   "type": "module",
   "devDependencies": {
+    "@capacitor/cli": "^6.2.1",
     "vite": "^8.1.5"
   },
   "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/core": "^6.2.1",
     "phaser": "^3.90.0"
   }
 }
