@@ -21,6 +21,9 @@ const BAR_LEFT = 90;
 const BAR_RIGHT = 390;
 const BAR_Y = 430;
 
+// Where the boat sits on the water surface (water spans y 480-800)
+const BOAT_REST_Y = 560;
+
 export default class FishingScene extends Phaser.Scene {
 
     constructor() {
@@ -110,8 +113,9 @@ export default class FishingScene extends Phaser.Scene {
         this.portal.destroy();
 
         this.bunny.setVisible(true);
-        this.boatContainer.setPosition(240, 420);
+        this.boatContainer.setPosition(240, BOAT_REST_Y);
         this.boatContainer.setScale(1);
+        this.startBoatBob();
 
         this.rod.rod.setVisible(true);
         this.rod.rod.setScale(0.16);
@@ -296,12 +300,14 @@ export default class FishingScene extends Phaser.Scene {
 
         this.tweens.add({
             targets: this.boatContainer,
-            y: 420,
+            y: BOAT_REST_Y,
             scaleX: 1,
             scaleY: 1,
             duration: 2200,
             ease: "Sine.easeOut",
             onComplete: () => {
+
+                this.startBoatBob();
 
                 this.tweens.add({
                     targets: this.portal,
@@ -310,7 +316,7 @@ export default class FishingScene extends Phaser.Scene {
                     onComplete: () => this.portal.destroy()
                 });
 
-                this.burstSparkles(240, 320, 12);
+                this.burstSparkles(240, 440, 12);
 
                 this.time.delayedCall(500, () => {
                     this.rod.rod.setVisible(true);
@@ -328,6 +334,18 @@ export default class FishingScene extends Phaser.Scene {
             }
         });
 
+    }
+
+    // Gentle bobbing around the resting position
+    startBoatBob() {
+        this.tweens.add({
+            targets: this.boatContainer,
+            y: BOAT_REST_Y - 6,
+            duration: 1800,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut"
+        });
     }
 
     startFishing() {
@@ -504,9 +522,9 @@ export default class FishingScene extends Phaser.Scene {
             this.currentZone = "deep";
         }
 
-        // Landing point: more power = farther / deeper
-        const targetX = 150 + power * 250;
-        const targetY = 560 + power * 130;
+        // Landing point in the water below the boat: more power = farther / deeper
+        const targetX = 170 + power * 210;
+        const targetY = 630 + power * 110;
 
         const tip = this.rod.getTipPosition();
         this.hook.setPosition(tip.x, tip.y);
@@ -664,9 +682,9 @@ export default class FishingScene extends Phaser.Scene {
         this.retractLine(() => {
 
             if (this.lives <= 0) {
-                this.showFloating("🐟 It got away!", 0xD9534F, () => this.failDay("The fish won today!"));
+                this.showFloating("Just missed it!", 0xD9534F, () => this.failDay("Out of tries for today!"));
             } else {
-                this.showFloating("🐟 It got away!", 0xD9534F, () => this.readyNextCast());
+                this.showFloating("Just missed it!", 0xD9534F, () => this.readyNextCast());
             }
 
         });

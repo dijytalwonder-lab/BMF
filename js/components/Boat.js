@@ -8,9 +8,10 @@ export default class Boat {
 
     create() {
 
+        // Resting Y is controlled by the scene; gentle bobbing is started there
         this.container = this.scene.add.container(
             240,
-            505
+            560
         );
 
         const boat = this.scene.add.image(
@@ -22,22 +23,6 @@ export default class Boat {
         boat.setScale(0.28);
 
         this.container.add(boat);
-
-        this.scene.tweens.add({
-
-            targets: this.container,
-
-            y: 500,
-
-            duration: 1800,
-
-            yoyo: true,
-
-            repeat: -1,
-
-            ease: "Sine.easeInOut"
-
-        });
 
         return this.container;
 

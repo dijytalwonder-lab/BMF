@@ -21,11 +21,11 @@ export default class FishingRod {
 
         this.boatContainer.add(this.rod);
 
-        // Position of the rod tip relative to the boat
+        // Position of the rod tip (the end the line hangs from) relative to the boat
         this.rodTip = {
 
-            x: 108,
-            y: -62
+            x: 176,
+            y: -66
 
         };
 

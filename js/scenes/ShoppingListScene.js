@@ -160,8 +160,11 @@ export default class ShoppingListScene extends Phaser.Scene {
         });
 
         //-----------------------------------
-        // Shopping Items
+        // Shopping Items (spacing shrinks so 3-5 items fit the parchment)
         //-----------------------------------
+
+        const startY = 288;
+        const spacing = shoppingList.length <= 3 ? 52 : shoppingList.length === 4 ? 46 : 40;
 
         shoppingList.forEach((item, index) => {
 
@@ -175,7 +178,7 @@ export default class ShoppingListScene extends Phaser.Scene {
 
                         250,
 
-                        285 + index * 55,
+                        startY + index * spacing,
 
                         `${item.emoji}   ${item.name}`,
 
@@ -183,7 +186,7 @@ export default class ShoppingListScene extends Phaser.Scene {
 
                             fontFamily: "Arial",
 
-                            fontSize: "24px",
+                            fontSize: "23px",
 
                             color: "#333333"
 
