@@ -1,5 +1,7 @@
 import Phaser from "phaser";
 import GameData from "../data/GameData.js";
+import AudioManager from "../managers/AudioManager.js";
+import DECORATIONS from "../data/decorations.js";
 
 export default class HomeDecorationScene extends Phaser.Scene {
 
@@ -61,67 +63,58 @@ export default class HomeDecorationScene extends Phaser.Scene {
 
         this.createSleepButton();
 
+        AudioManager.addMuteButton(this);
+
     }
 
     placeDecorations() {
 
-        GameData.ownedDecorations.forEach(decoration => {
+        const owned = DECORATIONS.filter(
+            (d) => GameData.ownedDecorations.includes(d.name)
+        );
 
-            switch (decoration) {
+        if (owned.length > 0) {
+            this.add.text(
+                240, 108,
+                "Drag your decorations to arrange them ✨",
+                {
+                    fontFamily: "Arial",
+                    fontSize: "16px",
+                    color: "#5A3E1B"
+                }
+            ).setOrigin(0.5);
+        }
 
-                case "Flower Pot":
+        owned.forEach((decoration) => {
 
-                    this.add.text(
-                        85,
-                        560,
-                        "🌷",
-                        {
-                            fontSize: "42px"
-                        }
-                    );
+            const saved = GameData.decorPositions[decoration.id];
+            const x = saved ? saved.x : decoration.place.x;
+            const y = saved ? saved.y : decoration.place.y;
 
-                    break;
+            const obj = this.add.text(
+                x, y,
+                decoration.emoji,
+                {
+                    fontSize: decoration.place.size
+                }
+            ).setOrigin(0.5);
 
-                case "Chair":
+            obj.setInteractive({ useHandCursor: true, draggable: true });
+            this.input.setDraggable(obj);
 
-                    this.add.text(
-                        250,
-                        610,
-                        "🪑",
-                        {
-                            fontSize: "42px"
-                        }
-                    );
+            obj.on("drag", (pointer, dragX, dragY) => {
+                obj.x = Phaser.Math.Clamp(dragX, 30, 450);
+                obj.y = Phaser.Math.Clamp(dragY, 150, 690);
+            });
 
-                    break;
-
-                case "Window":
-
-                    this.add.text(
-                        140,
-                        545,
-                        "🪟",
-                        {
-                            fontSize: "42px"
-                        }
-                    );
-
-                    break;
-
-                case "Flower Garden":
-
-                    this.add.text(
-                        185,
-                        690,
-                        "🌼",
-                        {
-                            fontSize: "46px"
-                        }
-                    );
-
-                    break;
-
-            }
+            obj.on("dragend", () => {
+                GameData.decorPositions[decoration.id] = {
+                    x: Math.round(obj.x),
+                    y: Math.round(obj.y)
+                };
+                GameData.save();
+                AudioManager.click();
+            });
 
         });
 
@@ -167,6 +160,7 @@ export default class HomeDecorationScene extends Phaser.Scene {
 
         button.on("pointerdown", () => {
 
+            AudioManager.click();
             this.startNextDay();
 
         });
@@ -175,8 +169,11 @@ export default class HomeDecorationScene extends Phaser.Scene {
 
     startNextDay() {
 
+        GameData.day += 1;
         GameData.shoppingList = [];
         GameData.collectedItems = [];
+
+        GameData.save();
 
         this.cameras.main.fadeOut(500, 0, 0, 0);
 

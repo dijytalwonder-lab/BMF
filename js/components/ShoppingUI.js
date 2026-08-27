@@ -14,16 +14,20 @@ export default class ShoppingUI {
 
     create() {
 
+        // Sits above the drifting clouds so the objective stays readable
+        const DEPTH = 100;
+
         const panel = this.scene.add.rectangle(
             240,
             95,
-            260,
+            270,
             140,
-            0xFFFFFF,
-            0.92
+            0xFFFDF5,
+            1
         );
 
         panel.setStrokeStyle(4, 0x8B6B3F);
+        panel.setDepth(DEPTH);
 
         this.scene.add.text(
             240,
@@ -35,16 +39,16 @@ export default class ShoppingUI {
                 fontStyle: "bold",
                 color: "#5A3E1B"
             }
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setDepth(DEPTH + 1);
 
         GameData.shoppingList.forEach((item, index) => {
 
             const text = this.scene.add.text(
 
-                120,
+                125,
                 75 + index * 30,
 
-                `${item.emoji} ${item.name}`,
+                `⬜ ${item.emoji} ${item.name}`,
 
                 {
                     fontFamily: "Arial",
@@ -52,7 +56,7 @@ export default class ShoppingUI {
                     color: "#333333"
                 }
 
-            );
+            ).setDepth(DEPTH + 1);
 
             this.shoppingTexts.push(text);
 
@@ -97,13 +101,15 @@ export default class ShoppingUI {
             340,
             170,
             0xFFFFFF,
-            0.95
+            0.98
         );
 
         this.popupPanel.setStrokeStyle(
             4,
             success ? 0x4CAF50 : 0xD9534F
         );
+
+        this.popupPanel.setDepth(110);
 
         const title = success
             ? "Collected!"
@@ -123,7 +129,7 @@ export default class ShoppingUI {
                 align: "center"
             }
 
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setDepth(111);
 
         this.scene.time.delayedCall(1500, () => {
 
@@ -157,6 +163,7 @@ export default class ShoppingUI {
     );
 
     panel.setStrokeStyle(5, 0xFFD700);
+    panel.setDepth(110);
 
     const text = this.scene.add.text(
 
@@ -172,7 +179,7 @@ export default class ShoppingUI {
             align: "center"
         }
 
-    ).setOrigin(0.5);
+    ).setOrigin(0.5).setDepth(111);
 
     const button = this.scene.add.rectangle(
         240,
@@ -183,6 +190,7 @@ export default class ShoppingUI {
     );
 
     button.setStrokeStyle(3, 0x4A7A2A);
+    button.setDepth(111);
 
     const buttonText = this.scene.add.text(
         240,
@@ -194,7 +202,7 @@ export default class ShoppingUI {
             color: "#ffffff",
             fontStyle: "bold"
         }
-    ).setOrigin(0.5);
+    ).setOrigin(0.5).setDepth(112);
 
     button.setInteractive({ useHandCursor: true });
 

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import GameData from "../data/GameData.js";
+import AudioManager from "../managers/AudioManager.js";
 import ITEMS from "../data/items.js";
 
 export default class SellingScene extends Phaser.Scene {
@@ -212,6 +213,8 @@ sellCurrentItem(item) {
 
     this.totalCoinsEarned += item.value;
 
+    AudioManager.coin();
+
     this.tweens.add({
 
         targets: value,
@@ -240,6 +243,8 @@ sellCurrentItem(item) {
 }
 
 finishSelling() {
+
+    GameData.save();
 
     this.add.text(
 
@@ -295,6 +300,8 @@ finishSelling() {
     button.setInteractive({ useHandCursor: true });
 
     button.on("pointerdown", () => {
+
+        AudioManager.click();
 
         this.cameras.main.fadeOut(400);
 

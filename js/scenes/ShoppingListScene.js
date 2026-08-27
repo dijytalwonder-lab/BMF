@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import ITEMS from "../data/items.js";
 import GameData from "../data/GameData.js";
+import AudioManager from "../managers/AudioManager.js";
 
 export default class ShoppingListScene extends Phaser.Scene {
 
@@ -23,20 +24,33 @@ export default class ShoppingListScene extends Phaser.Scene {
         // Scene Title
         this.add.text(
             240,
-            70,
+            60,
             "Today's Shopping List",
             {
                 fontFamily: "Arial",
-                fontSize: "34px",
+                fontSize: "32px",
                 fontStyle: "bold",
                 color: "#4A2E16"
             }
         ).setOrigin(0.5);
 
-        // Generate today's shopping list
+        this.add.text(
+            240,
+            95,
+            `☀️ Day ${GameData.day}`,
+            {
+                fontFamily: "Arial",
+                fontSize: "22px",
+                fontStyle: "bold",
+                color: "#C98C00"
+            }
+        ).setOrigin(0.5);
+
+        // Generate today's shopping list (length grows with the day)
+        const count = GameData.dayConfig().items;
         const shoppingList = Phaser.Utils.Array
             .Shuffle([...ITEMS])
-            .slice(0, 3);
+            .slice(0, count);
 
         GameData.shoppingList = shoppingList;
         GameData.collectedItems = [];
@@ -301,6 +315,8 @@ export default class ShoppingListScene extends Phaser.Scene {
         });
 
         startButton.on("pointerdown", () => {
+
+            AudioManager.click();
 
             this.tweens.add({
 

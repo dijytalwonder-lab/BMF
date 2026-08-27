@@ -1,5 +1,7 @@
 import Phaser from "phaser";
 import GameData from "../data/GameData.js";
+import AudioManager from "../managers/AudioManager.js";
+import DECORATIONS from "../data/decorations.js";
 
 export default class DecorationShopScene extends Phaser.Scene {
 
@@ -13,33 +15,7 @@ export default class DecorationShopScene extends Phaser.Scene {
 
         this.cameras.main.setBackgroundColor("#DDF7FF");
 
-        this.decorations = [
-
-            {
-                name: "Flower Pot",
-                emoji: "🌷",
-                cost: 15
-            },
-
-            {
-                name: "Chair",
-                emoji: "🪑",
-                cost: 25
-            },
-
-            {
-                name: "Window",
-                emoji: "🪟",
-                cost: 40
-            },
-
-            {
-                name: "Flower Garden",
-                emoji: "🌼",
-                cost: 60
-            }
-
-        ];
+        this.decorations = DECORATIONS;
 
         this.createUI();
 
@@ -95,7 +71,7 @@ export default class DecorationShopScene extends Phaser.Scene {
 
     createDecorationCard(item, index) {
 
-        const y = 190 + index * 120;
+        const y = 165 + index * 93;
 
         const panel = this.add.rectangle(
 
@@ -103,7 +79,7 @@ export default class DecorationShopScene extends Phaser.Scene {
             y,
 
             420,
-            95,
+            80,
 
             0xFFFFFF,
             0.95
@@ -234,6 +210,7 @@ export default class DecorationShopScene extends Phaser.Scene {
 
         if (GameData.coins < item.cost) {
 
+            AudioManager.miss();
             this.showMessage("Not enough coins!");
 
             return;
@@ -250,6 +227,8 @@ export default class DecorationShopScene extends Phaser.Scene {
 
         GameData.ownedDecorations.push(item.name);
 
+        GameData.save();
+
         this.coinText.setText(
 
             `💰 Coins : ${GameData.coins}`
@@ -262,6 +241,7 @@ export default class DecorationShopScene extends Phaser.Scene {
 
         buttonText.setText("OWNED");
 
+        AudioManager.coin();
         this.showMessage(`Purchased ${item.emoji}`);
 
     }
@@ -361,6 +341,8 @@ export default class DecorationShopScene extends Phaser.Scene {
 
         button.on("pointerdown", () => {
 
+            AudioManager.click();
+
             // Bunny has returned home
 
             GameData.bunnyAtHome = true;
@@ -372,6 +354,8 @@ export default class DecorationShopScene extends Phaser.Scene {
             );
 
         });
+
+        AudioManager.addMuteButton(this);
 
     }
 

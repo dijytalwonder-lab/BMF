@@ -1,5 +1,19 @@
 import Phaser from "phaser";
 
+import GameData from "./data/GameData.js";
+import AudioManager from "./managers/AudioManager.js";
+
+// Restore saved progress (coins, decorations, day) before the game starts
+GameData.load();
+
+// Browsers block audio until the first user gesture: unlock + start music then
+const unlockAudio = () => {
+    AudioManager.ensure();
+    AudioManager.startMusic();
+    window.removeEventListener("pointerdown", unlockAudio);
+};
+window.addEventListener("pointerdown", unlockAudio);
+
 import LoadingScene from "./scenes/LoadingScene.js";
 import HomeScene from "./scenes/HomeScene.js";
 import ShoppingListScene from "./scenes/ShoppingListScene.js";
@@ -40,4 +54,7 @@ const config = {
 
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+
+// Debug hook (harmless; handy for testing scene state in the console)
+window.game = game;

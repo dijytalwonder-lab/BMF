@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import GameData from "../data/GameData.js";
+import AudioManager from "../managers/AudioManager.js";
 
 export default class HomeScene extends Phaser.Scene {
 
@@ -107,6 +108,8 @@ export default class HomeScene extends Phaser.Scene {
             useHandCursor: true
         });
 
+        AudioManager.addMuteButton(this);
+
         // Hover
 
         this.playButton.on("pointerover", () => {
@@ -134,6 +137,8 @@ export default class HomeScene extends Phaser.Scene {
         // Click
 
         this.playButton.on("pointerdown", () => {
+
+            AudioManager.click();
 
             // Bunny is leaving home
             GameData.bunnyAtHome = false;

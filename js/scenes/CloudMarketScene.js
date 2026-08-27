@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import AudioManager from "../managers/AudioManager.js";
 
 export default class CloudMarketScene extends Phaser.Scene {
 
@@ -164,6 +165,8 @@ export default class CloudMarketScene extends Phaser.Scene {
         });
 
         button.on("pointerdown", () => {
+
+            AudioManager.click();
 
             this.cameras.main.fadeOut(
                 400,

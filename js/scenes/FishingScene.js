@@ -1,12 +1,25 @@
 import Phaser from "phaser";
 import GameData from "../data/GameData.js";
-import ITEMS from "../data/items.js";
+import AudioManager from "../managers/AudioManager.js";
 import FishingManager from "../managers/FishingManager.js";
 import Boat from "../components/Boat.js";
 import Bunny from "../components/Bunny.js";
 import FishingRod from "../components/FishingRod.js";
 import Bobber from "../components/Bobber.js";
 import ShoppingUI from "../components/ShoppingUI.js";
+
+// -------------------------------------------------------------
+// Fishing minigame tuning
+// -------------------------------------------------------------
+const ZONES = {
+    shallow: { neededChance: 0.35, catchWidth: 92, markerSpeed: 300, bonus: 2, color: 0x7ED957 },
+    mid:     { neededChance: 0.60, catchWidth: 66, markerSpeed: 430, bonus: 5, color: 0xFFC93C },
+    deep:    { neededChance: 0.90, catchWidth: 46, markerSpeed: 580, bonus: 10, color: 0xFF7BAC }
+};
+
+const BAR_LEFT = 90;
+const BAR_RIGHT = 390;
+const BAR_Y = 430;
 
 export default class FishingScene extends Phaser.Scene {
 
@@ -16,1084 +29,943 @@ export default class FishingScene extends Phaser.Scene {
 
     create() {
 
-    this.isFishing = false;
-    this.waitingForBite = false;
-    this.canFish = false;
-
-    this.fishingManager = new FishingManager(this);
-
-    //--------------------------------------------------
-    // Background
-    //--------------------------------------------------
-
-    this.createBackground();
-
-    this.shoppingUI = new ShoppingUI(this);
-    this.shoppingUI.create();
-
-    this.createClouds();
-    this.createWater();
-
-    //--------------------------------------------------
-    // Boat
-    //--------------------------------------------------
-
-    const boat = new Boat(this);
-    this.boatContainer = boat.create();
-
-    //--------------------------------------------------
-    // Portal
-    //--------------------------------------------------
-
-    this.portal = this.add.image(
-        240,
-        140,
-        "cloudPortal"
-    );
-
-    this.portal.setScale(0.42);
-
-    this.portal.setDepth(50);
-
-    this.tweens.add({
-
-        targets: this.portal,
-
-        angle: 360,
-
-        duration: 15000,
-
-        repeat: -1,
-
-        ease: "Linear"
-
-    });
-
-    //--------------------------------------------------
-    // Bunny
-    //--------------------------------------------------
-
-    const bunny = new Bunny(
-        this,
-        this.boatContainer
-    );
-
-    this.bunny = bunny.create();
-
-    this.bunny.setVisible(false);
-
-    //--------------------------------------------------
-    // Rod
-    //--------------------------------------------------
-
-    this.rod = new FishingRod(
-        this,
-        this.boatContainer
-    ).create();
-
-    this.rod.rod.setVisible(false);
-
-    //--------------------------------------------------
-    // Bobber
-    //--------------------------------------------------
-
-    this.lineGraphics =
-        this.fishingManager.createFishingLine();
-
-    const bobber = new Bobber(this);
-
-    this.bobber = bobber;
-
-    this.hook = bobber.create();
-
-    //--------------------------------------------------
-    // Intro Animation
-    //--------------------------------------------------
-
-    this.playIntroAnimation();
-
-}
-
-playIntroAnimation() {
-
-    //--------------------------------------------------
-    // Bunny appears from portal
-    //--------------------------------------------------
-
-    this.bunny.setVisible(true);
-
-    this.boatContainer.x = 240;
-    this.boatContainer.y = 140;
-
-    this.boatContainer.setScale(0.08);
-
-    this.tweens.add({
-
-        targets: this.boatContainer,
-
-        y: 420,
-
-        scaleX: 1,
-
-        scaleY: 1,
-
-        duration: 2200,
-
-        ease: "Sine.easeOut",
-
-        onComplete: () => {
-
-            //--------------------------------------------------
-            // Portal disappears
-            //--------------------------------------------------
-
-            this.tweens.add({
-
-                targets: this.portal,
-
-                alpha: 0,
-
-                duration: 500,
-
-                onComplete: () => {
-
-                    this.portal.destroy();
-
-                }
-
-            });
-
-            //--------------------------------------------------
-            // Magical sparkles
-            //--------------------------------------------------
-
-            for (let i = 0; i < 12; i++) {
-
-                const sparkle = this.add.circle(
-
-                    Phaser.Math.Between(180,300),
-                    Phaser.Math.Between(220,420),
-
-                    3,
-
-                    0xffffff
-
-                );
-
-                this.tweens.add({
-
-                    targets: sparkle,
-
-                    alpha:0,
-
-                    scale:3,
-
-                    duration:700,
-
-                    delay:i*40,
-
-                    onComplete:()=>{
-
-                        sparkle.destroy();
-
-                    }
-
-                });
-
-            }
-
-            //--------------------------------------------------
-            // Rod magically appears
-            //--------------------------------------------------
-
-            this.time.delayedCall(500,()=>{
-
-                this.rod.rod.setVisible(true);
-
-                this.rod.rod.setScale(0);
-
-                this.tweens.add({
-
-                    targets:this.rod.rod,
-
-                    scale:0.16,
-
-                    duration:400,
-
-                    ease:"Back.easeOut"
-
-                });
-
-            });
-
-            //--------------------------------------------------
-            // Enable Fishing
-            //--------------------------------------------------
-
-            this.time.delayedCall(900,()=>{
-
-                this.canFish = true;
-
-                this.add.text(
-
-                    240,
-                    70,
-
-                    "Tap the water to cast your line",
-
-                    {
-
-                        fontFamily:"Arial",
-
-                        fontSize:"24px",
-
-                        color:"#ffffff",
-
-                        stroke:"#333333",
-
-                        strokeThickness:5
-
-                    }
-
-                ).setOrigin(0.5);
-
-            });
-
+        // Game states: intro | idle | charging | casting | waiting | minigame | resolving | won | failed
+        this.state = "intro";
+        this.combo = 0;
+        this.currentZone = "shallow";
+
+        // Skip the portal fly-in when retrying a failed day
+        const data = this.scene.settings.data || {};
+        this.isRetry = !!data.retry;
+
+        // Day difficulty: timer + lives
+        const cfg = GameData.dayConfig();
+        this.timeLeft = cfg.time;
+        this.maxLives = cfg.lives;
+        this.lives = cfg.lives;
+
+        this.fishingManager = new FishingManager(this);
+
+        this.createBackground();
+
+        this.shoppingUI = new ShoppingUI(this);
+        this.shoppingUI.create();
+
+        this.createClouds();
+        this.createWater();
+        this.createWaterAnimation();   // shimmer (was written but never called)
+        this.createFishShadows();      // swimming shadows (was written but never called)
+
+        // Boat
+        const boat = new Boat(this);
+        this.boatContainer = boat.create();
+
+        // Portal
+        this.portal = this.add.image(240, 140, "cloudPortal");
+        this.portal.setScale(0.42);
+        this.portal.setDepth(50);
+        this.tweens.add({
+            targets: this.portal,
+            angle: 360,
+            duration: 15000,
+            repeat: -1,
+            ease: "Linear"
+        });
+
+        // Bunny (rides the boat)
+        const bunny = new Bunny(this, this.boatContainer);
+        this.bunny = bunny.create();
+        this.bunny.setVisible(false);
+
+        // Rod
+        this.rod = new FishingRod(this, this.boatContainer).create();
+        this.rod.rod.setVisible(false);
+
+        // Fishing line + bobber
+        this.lineGraphics = this.fishingManager.createFishingLine();
+        this.lineGraphics.setDepth(40);
+
+        const bobber = new Bobber(this);
+        this.bobber = bobber;
+        this.hook = bobber.create();
+        this.hook.setDepth(41);
+
+        this.createHud();
+
+        this.muteButton = AudioManager.addMuteButton(this);
+
+        // Single input surface: tap anywhere on the scene
+        this.input.on("pointerdown", this.onPointerDown, this);
+        this.input.on("pointerup", this.onPointerUp, this);
+
+        if (this.isRetry) {
+            this.skipIntro();
+        } else {
+            this.playIntroAnimation();
         }
 
-    });
+    }
 
-}
+    // Retry: place boat/rod immediately, no portal fly-in
+    skipIntro() {
 
-startIntro(){
+        this.portal.destroy();
 
-    // Open portal
+        this.bunny.setVisible(true);
+        this.boatContainer.setPosition(240, 420);
+        this.boatContainer.setScale(1);
 
-    this.tweens.add({
+        this.rod.rod.setVisible(true);
+        this.rod.rod.setScale(0.16);
 
-        targets:this.portal,
+        this.startFishing();
 
-        scale:0.42,
+    }
 
-        duration:900,
-
-        ease:"Back.easeOut"
-
-    });
-
-    this.tweens.add({
-
-        targets:this.portal,
-
-        angle:360,
-
-        duration:14000,
-
-        repeat:-1
-
-    });
-
-}
-
-createFishShadows(){
-
-    this.time.addEvent({
-
-        delay:3500,
-
-        loop:true,
-
-        callback:()=>{
-
-            const fish=this.add.ellipse(
-
-                -30,
-
-                Phaser.Math.Between(560,700),
-
-                26,
-
-                12,
-
-                0x000000,
-
-                0.12
-
-            );
-
-            this.tweens.add({
-
-                targets:fish,
-
-                x:520,
-
-                duration:Phaser.Math.Between(5000,7000),
-
-                ease:"Linear",
-
-                onComplete:()=>{
-
-                    fish.destroy();
-
-                }
-
-            });
-
-        }
-
-    });
-
-}
-
-createWaterAnimation(){
-
-    this.tweens.add({
-
-        targets:this.water,
-
-        alpha:0.93,
-
-        duration:900,
-
-        yoyo:true,
-
-        repeat:-1,
-
-        ease:"Sine.easeInOut"
-
-    });
-
-}
-
-startArrivalIntro() {
-
-    //----------------------------------
-    // Bunny appears inside portal
-    //----------------------------------
-
-    this.bunny.setVisible(true);
-
-    this.bunny.setPosition(240,170);
-
-    this.bunny.setScale(0.02);
-
-    this.bunny.setAngle(-20);
-
-    //----------------------------------
-    // Fly out of portal
-    //----------------------------------
-
-    this.tweens.add({
-
-        targets:this.bunny,
-
-        x:240,
-
-        y:300,
-
-        scaleX:0.18,
-
-        scaleY:0.18,
-
-        angle:0,
-
-        duration:1200,
-
-        ease:"Back.easeOut",
-
-        onComplete:()=>{
-
-            this.landOnBoat();
-
-        }
-
-    });
-
-}
-landOnBoat(){
-
-    this.tweens.add({
-
-        targets:this.bunny,
-
-        x:130,
-
-        y:575,
-
-        duration:1400,
-
-        ease:"Sine.easeInOut",
-
-        onComplete:()=>{
-
-    this.tweens.add({
-
-        targets:this.bunny,
-
-        y:this.bunny.y+5,
-
-        duration:120,
-
-        yoyo:true,
-
-        onComplete:()=>{
-
-            this.showMagicRod();
-
-        }
-
-    });
-
-}
-
-    });
-
-}
+    // ---------------------------------------------------------
+    // Scenery
+    // ---------------------------------------------------------
 
     createBackground() {
-
         this.cameras.main.setBackgroundColor("#BEEBFF");
-
     }
 
     createClouds() {
 
-    this.cloud1 = this.add.image(
-        120,
-        90,
-        "clouds"
-    );
+        this.cloud1 = this.add.image(120, 90, "clouds").setScale(0.55).setAlpha(0.8);
+        this.cloud2 = this.add.image(360, 150, "clouds").setScale(0.38).setAlpha(0.65);
+        this.cloud3 = this.add.image(250, 60, "clouds").setScale(0.28).setAlpha(0.55);
 
-    this.cloud1.setScale(0.55);
-    this.cloud1.setAlpha(0.8);
-
-    this.cloud2 = this.add.image(
-        360,
-        150,
-        "clouds"
-    );
-
-    this.cloud2.setScale(0.38);
-    this.cloud2.setAlpha(0.65);
-
-    this.cloud3 = this.add.image(
-        250,
-        60,
-        "clouds"
-    );
-
-    this.cloud3.setScale(0.28);
-    this.cloud3.setAlpha(0.55);
-
-    this.tweens.add({
-
-        targets:this.cloud1,
-
-        x:170,
-
-        duration:18000,
-
-        repeat:-1,
-
-        yoyo:true,
-
-        ease:"Linear"
-
-    });
-
-    this.tweens.add({
-
-        targets:this.cloud2,
-
-        x:310,
-
-        duration:14000,
-
-        repeat:-1,
-
-        yoyo:true,
-
-        ease:"Linear"
-
-    });
-
-    this.tweens.add({
-
-        targets:this.cloud3,
-
-        x:300,
-
-        duration:22000,
-
-        repeat:-1,
-
-        yoyo:true,
-
-        ease:"Linear"
-
-    });
-
-}
-
-    showMagicRod(){
-
-    this.rod.setVisible(true);
-
-    this.rod.setAlpha(0);
-
-    this.rod.setScale(0.3);
-
-    this.tweens.add({
-
-        targets:this.rod,
-
-        alpha:1,
-
-        scaleX:1,
-
-        scaleY:1,
-
-        duration:600,
-
-        ease:"Back.easeOut"
-
-    });
-
-    for(let i=0;i<12;i++){
-
-        const star=this.add.circle(
-
-            this.rod.x,
-
-            this.rod.y,
-
-            Phaser.Math.Between(2,4),
-
-            0xFFF799
-
-        );
-
-        this.tweens.add({
-
-            targets:star,
-
-            x:star.x+Phaser.Math.Between(-40,40),
-
-            y:star.y+Phaser.Math.Between(-40,40),
-
-            alpha:0,
-
-            duration:700,
-
-            onComplete:()=>star.destroy()
-
-        });
+        this.tweens.add({ targets: this.cloud1, x: 170, duration: 18000, repeat: -1, yoyo: true, ease: "Linear" });
+        this.tweens.add({ targets: this.cloud2, x: 310, duration: 14000, repeat: -1, yoyo: true, ease: "Linear" });
+        this.tweens.add({ targets: this.cloud3, x: 300, duration: 22000, repeat: -1, yoyo: true, ease: "Linear" });
 
     }
-
-    this.showStartFishingText();
-
-}
-
-showStartFishingText(){
-
-    const txt=this.add.text(
-
-        240,
-        90,
-
-        "Let's Fish!",
-
-        {
-
-            fontFamily:"Arial",
-
-            fontSize:"34px",
-
-            fontStyle:"bold",
-
-            color:"#FFFFFF",
-
-            stroke:"#35648A",
-
-            strokeThickness:6
-
-        }
-
-    ).setOrigin(0.5);
-
-    txt.setAlpha(0);
-
-    this.tweens.add({
-
-        targets:txt,
-
-        alpha:1,
-
-        duration:350,
-
-        yoyo:true,
-
-        hold:1000,
-
-        onComplete:()=>{
-
-            txt.destroy();
-
-            this.canFish=true;
-
-            this.tweens.add({
-
-    targets: this.portal,
-
-    alpha:0,
-
-    scale:0.2,
-
-    duration:500,
-
-    onComplete:()=>{
-
-        this.portal.destroy();
-
-    }
-
-});
-
-        }
-
-    });
-
-}
 
     createWater() {
 
-        this.water = this.add.image(
-            240,
-            640,
-            "water"
-        );
-
+        this.water = this.add.image(240, 640, "water");
         this.water.setDisplaySize(480, 320);
 
-        this.water.setInteractive();
-
-        this.water.on("pointerdown", (pointer) => {
-
-    // Ignore clicks until intro finishes
-    if (!this.canFish) {
-        return;
     }
 
-    if (!this.canFish) return;
+    createWaterAnimation() {
 
-if (!this.isFishing) {
-
-        this.castFishingLine(pointer.x, pointer.y);
-
-    }
-
-    else if (this.waitingForBite) {
-
-        this.reelIn();
+        this.tweens.add({
+            targets: this.water,
+            alpha: 0.93,
+            duration: 900,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut"
+        });
 
     }
 
-});
+    createFishShadows() {
 
-    }
+        this.time.addEvent({
+            delay: 3500,
+            loop: true,
+            callback: () => {
 
-reelIn() {
+                if (!this.scene.isActive()) {
+                    return;
+                }
 
-    this.waitingForBite = false;
+                const fish = this.add.ellipse(
+                    -30,
+                    Phaser.Math.Between(600, 730),
+                    26, 12,
+                    0x000000, 0.12
+                );
 
-    // Stop bobber floating animation
-    this.tweens.killTweensOf(this.hook);
-
-    const tip = this.rod.getTipPosition();
-
-const startX = tip.x;
-const startY = tip.y;
-
-    this.tweens.add({
-
-        targets: this.hook,
-
-        x: startX,
-        y: startY,
-
-        duration: 450,
-
-        ease: "Sine.easeIn",
-
-        onUpdate: () => {
-
-            this.lineGraphics.clear();
-
-            this.lineGraphics.lineStyle(
-                1,
-                0xE8E2D6,
-                0.9
-            );
-
-            this.lineGraphics.beginPath();
-
-            this.lineGraphics.moveTo(
-                startX,
-                startY
-            );
-
-            this.lineGraphics.lineTo(
-                this.hook.x,
-                this.hook.y
-            );
-
-            this.lineGraphics.strokePath();
-
-        },
-
-        onComplete: () => {
-
-            // Remove the fishing line
-            this.lineGraphics.clear();
-
-            // Hide bobber
-            this.hook.setVisible(false);
-
-            // Reset rotation
-            this.hook.setAngle(0);
-
-            // Ready for next cast
-            this.isFishing = false;
-            this.waitingForBite = false;
-
-            // Catch item
-            this.catchRandomItem();
-
-        }
-
-    });
-
-}
-    catchRandomItem() {
-
-    const item = Phaser.Utils.Array.GetRandom(ITEMS);
-
-    const needed = GameData.shoppingList.some(
-        shoppingItem => shoppingItem.name === item.name
-    );
-
-    const alreadyCollected = GameData.collectedItems.includes(
-        item.name
-    );
-
-    if (!needed) {
-
-        this.shoppingUI.showCatchPopup(
-
-            item,
-
-            false,
-
-            "Not On Today's List!",
-
-            () => {
-
-                this.checkWinCondition();
+                this.tweens.add({
+                    targets: fish,
+                    x: 520,
+                    duration: Phaser.Math.Between(5000, 7000),
+                    ease: "Linear",
+                    onComplete: () => fish.destroy()
+                });
 
             }
-
-        );
-
-        return;
+        });
 
     }
 
-    if (alreadyCollected) {
+    // ---------------------------------------------------------
+    // HUD: instruction, combo, power meter, reaction bar
+    // ---------------------------------------------------------
 
-        this.shoppingUI.showCatchPopup(
+    createHud() {
 
-            item,
+        // Instruction sits BELOW the shopping panel (was overlapping before)
+        this.instruction = this.add.text(
+            240, 195, "",
+            {
+                fontFamily: "Arial",
+                fontSize: "20px",
+                color: "#ffffff",
+                align: "center",
+                stroke: "#35648A",
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5).setDepth(60);
 
-            false,
+        this.comboText = this.add.text(
+            240, 228, "",
+            {
+                fontFamily: "Arial",
+                fontSize: "22px",
+                fontStyle: "bold",
+                color: "#FFD700",
+                stroke: "#5A3E1B",
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5).setDepth(60);
 
-            "Already Collected!",
+        // ---- Timer (top-right) + lives (top-left), above the shopping panel ----
+        this.timerText = this.add.text(
+            434, 42, "",
+            {
+                fontFamily: "Arial",
+                fontSize: "24px",
+                fontStyle: "bold",
+                color: "#ffffff",
+                stroke: "#35648A",
+                strokeThickness: 5
+            }
+        ).setOrigin(0.5).setDepth(101);
 
-            () => {
+        this.livesText = this.add.text(
+            48, 42, "",
+            {
+                fontFamily: "Arial",
+                fontSize: "20px"
+            }
+        ).setOrigin(0.5).setDepth(101);
 
-                this.checkWinCondition();
+        // ---- Power meter (hidden until charging) ----
+        this.powerGroup = this.add.container(0, 0).setDepth(60);
+        const pmBg = this.add.rectangle(240, 765, 300, 26, 0x2B4A63, 0.85).setStrokeStyle(3, 0xffffff);
+        this.powerFill = this.add.rectangle(240 - 150, 765, 0, 18, 0x7ED957).setOrigin(0, 0.5);
+        const pmLabel = this.add.text(240, 738, "POWER", {
+            fontFamily: "Arial", fontSize: "16px", fontStyle: "bold",
+            color: "#ffffff", stroke: "#35648A", strokeThickness: 3
+        }).setOrigin(0.5);
+        this.powerGroup.add([pmBg, this.powerFill, pmLabel]);
+        this.powerGroup.setVisible(false);
+
+        // ---- Reaction bar (hidden until a bite) ----
+        this.reactionGroup = this.add.container(0, 0).setDepth(60);
+        const rbBg = this.add.rectangle(240, BAR_Y, BAR_RIGHT - BAR_LEFT, 30, 0x2B4A63, 0.9).setStrokeStyle(3, 0xffffff);
+        this.catchZone = this.add.rectangle(240, BAR_Y, 66, 26, 0x7ED957).setOrigin(0.5);
+        this.reactionMarker = this.add.rectangle(BAR_LEFT, BAR_Y, 8, 34, 0xffffff).setOrigin(0.5);
+        const rbLabel = this.add.text(240, BAR_Y - 34, "TAP in the green!", {
+            fontFamily: "Arial", fontSize: "18px", fontStyle: "bold",
+            color: "#ffffff", stroke: "#35648A", strokeThickness: 3
+        }).setOrigin(0.5);
+        this.reactionGroup.add([rbBg, this.catchZone, this.reactionMarker, rbLabel]);
+        this.reactionGroup.setVisible(false);
+
+    }
+
+    setInstruction(text) {
+        this.instruction.setText(text);
+    }
+
+    updateCombo() {
+        if (this.combo > 1) {
+            this.comboText.setText(`🔥 Combo x${this.combo}`);
+        } else {
+            this.comboText.setText("");
+        }
+    }
+
+    // ---------------------------------------------------------
+    // Intro
+    // ---------------------------------------------------------
+
+    playIntroAnimation() {
+
+        this.bunny.setVisible(true);
+
+        this.boatContainer.x = 240;
+        this.boatContainer.y = 140;
+        this.boatContainer.setScale(0.08);
+
+        this.tweens.add({
+            targets: this.boatContainer,
+            y: 420,
+            scaleX: 1,
+            scaleY: 1,
+            duration: 2200,
+            ease: "Sine.easeOut",
+            onComplete: () => {
+
+                this.tweens.add({
+                    targets: this.portal,
+                    alpha: 0,
+                    duration: 500,
+                    onComplete: () => this.portal.destroy()
+                });
+
+                this.burstSparkles(240, 320, 12);
+
+                this.time.delayedCall(500, () => {
+                    this.rod.rod.setVisible(true);
+                    this.rod.rod.setScale(0);
+                    this.tweens.add({
+                        targets: this.rod.rod,
+                        scale: 0.16,
+                        duration: 400,
+                        ease: "Back.easeOut"
+                    });
+                });
+
+                this.time.delayedCall(900, () => this.startFishing());
 
             }
-
-        );
-
-        return;
+        });
 
     }
 
-    // Correct item
+    startFishing() {
+        this.state = "idle";
+        this.setInstruction("Hold anywhere to charge power,\nrelease to cast!");
+        this.updateTimer();
+        this.updateLives();
+        this.startTimer();
+    }
 
-    GameData.collectedItems.push(item.name);
+    // ---------------------------------------------------------
+    // Timer + lives (day stakes)
+    // ---------------------------------------------------------
 
-    this.shoppingUI.updateList();
+    startTimer() {
 
-    this.shoppingUI.showCatchPopup(
+        this.timerEvent = this.time.addEvent({
+            delay: 1000,
+            loop: true,
+            callback: () => {
 
-        item,
+                if (this.state === "won" || this.state === "failed") {
+                    return;
+                }
 
-        true,
+                this.timeLeft -= 1;
+                this.updateTimer();
 
-        "",
+                if (this.timeLeft <= 0) {
+                    this.failDay("Out of time!");
+                }
 
-        () => {
+            }
+        });
 
-            this.checkWinCondition();
+    }
 
+    updateTimer() {
+        const t = Math.max(0, this.timeLeft);
+        this.timerText.setText(`⏱ ${t}`);
+        this.timerText.setColor(t <= 10 ? "#FF5A5A" : "#ffffff");
+    }
+
+    updateLives() {
+        const full = "❤️".repeat(this.lives);
+        const empty = "🖤".repeat(Math.max(0, this.maxLives - this.lives));
+        this.livesText.setText(full + empty);
+    }
+
+    failDay(reason) {
+
+        if (this.state === "won" || this.state === "failed") {
+            return;
         }
 
-    );
+        this.state = "failed";
 
-}
-    checkWinCondition() {
+        if (this.timerEvent) {
+            this.timerEvent.remove();
+            this.timerEvent = null;
+        }
 
-    if (
-        GameData.collectedItems.length ===
-        GameData.shoppingList.length
-    ) {
+        AudioManager.fail();
+        this.cameras.main.shake(300, 0.008);
 
-        this.shoppingUI.showWinPopup(() => {
+        this.clearBiteShadow(false);
+        this.tweens.killTweensOf(this.hook);
+        this.hook.setVisible(false);
+        this.lineGraphics.clear();
+        this.reactionGroup.setVisible(false);
+        this.powerGroup.setVisible(false);
+        this.setInstruction("");
 
-            this.cameras.main.fadeOut(400, 0, 0, 0);
+        this.showFailPopup(reason);
 
-            this.time.delayedCall(400, () => {
+    }
 
-                this.scene.start("CloudMarketScene");
+    showFailPopup(reason) {
 
-            });
+        const panel = this.add.rectangle(240, 400, 360, 220, 0xFFF0F0, 0.98).setDepth(110);
+        panel.setStrokeStyle(5, 0xD9534F);
+
+        this.add.text(
+            240, 365,
+            `😢\n${reason}\n\nTry again?`,
+            {
+                fontFamily: "Arial",
+                fontSize: "28px",
+                color: "#4A3A24",
+                align: "center"
+            }
+        ).setOrigin(0.5).setDepth(111);
+
+        const button = this.add.rectangle(240, 490, 200, 55, 0x7ED957).setDepth(111);
+        button.setStrokeStyle(3, 0x4A7A2A);
+
+        this.add.text(
+            240, 490, "Try Again",
+            {
+                fontFamily: "Arial",
+                fontSize: "24px",
+                color: "#ffffff",
+                fontStyle: "bold"
+            }
+        ).setOrigin(0.5).setDepth(112);
+
+        button.setInteractive({ useHandCursor: true });
+        button.on("pointerdown", () => {
+            // Fresh attempt at the same day's list
+            GameData.collectedItems = [];
+            this.scene.restart({ retry: true });
+        });
+
+    }
+
+    // ---------------------------------------------------------
+    // Input
+    // ---------------------------------------------------------
+
+    onPointerDown(pointer) {
+
+        // Ignore taps that land on the mute button
+        if (this.muteButton) {
+            const hits = this.input.hitTestPointer(pointer);
+            if (hits.includes(this.muteButton)) {
+                return;
+            }
+        }
+
+        if (this.state === "idle") {
+            this.beginCharge();
+        } else if (this.state === "minigame") {
+            this.lockReaction();
+        }
+
+    }
+
+    onPointerUp() {
+
+        if (this.state === "charging") {
+            this.releaseCast();
+        }
+
+    }
+
+    // ---------------------------------------------------------
+    // Casting (power meter)
+    // ---------------------------------------------------------
+
+    beginCharge() {
+        this.state = "charging";
+        this.charge = 0;
+        this.chargeDir = 1;
+        this.powerGroup.setVisible(true);
+        this.setInstruction("Release to cast!");
+    }
+
+    releaseCast() {
+
+        this.state = "casting";
+        this.powerGroup.setVisible(false);
+        this.setInstruction("");
+
+        AudioManager.cast();
+
+        const power = this.charge; // 0..1
+
+        // Zone by power
+        if (power < 0.4) {
+            this.currentZone = "shallow";
+        } else if (power < 0.75) {
+            this.currentZone = "mid";
+        } else {
+            this.currentZone = "deep";
+        }
+
+        // Landing point: more power = farther / deeper
+        const targetX = 150 + power * 250;
+        const targetY = 560 + power * 130;
+
+        const tip = this.rod.getTipPosition();
+        this.hook.setPosition(tip.x, tip.y);
+        this.hook.setVisible(true);
+        this.hook.setAngle(0);
+
+        this.tweens.add({
+            targets: this.hook,
+            x: targetX,
+            y: targetY,
+            duration: 450,
+            ease: "Sine.easeOut",
+            onComplete: () => {
+                this.createSplash(targetX, targetY);
+                this.startWaiting();
+            }
+        });
+
+    }
+
+    startWaiting() {
+
+        this.state = "waiting";
+        this.setInstruction("A shadow is circling...");
+
+        const waitTime = Phaser.Math.Between(1400, 3200);
+
+        // A dark shadow swims in toward the bobber (telegraphs the bite)
+        const fromLeft = Math.random() < 0.5;
+        const startX = fromLeft ? this.hook.x - 230 : this.hook.x + 230;
+
+        this.biteShadow = this.add.ellipse(
+            startX,
+            this.hook.y + 20,
+            38, 16,
+            0x1E3A55, 0.3
+        );
+        this.biteShadow.setDepth(30);
+
+        // Wobble as it swims
+        this.tweens.add({
+            targets: this.biteShadow,
+            scaleY: 1.3,
+            duration: 300,
+            yoyo: true,
+            repeat: -1,
+            ease: "Sine.easeInOut"
+        });
+
+        // Glide toward the bobber, then bite
+        this.tweens.add({
+            targets: this.biteShadow,
+            x: this.hook.x,
+            duration: waitTime,
+            ease: "Sine.easeIn",
+            onComplete: () => this.onBite()
+        });
+
+    }
+
+    onBite() {
+
+        if (this.state !== "waiting") {
+            return;
+        }
+
+        AudioManager.bite();
+
+        // Bobber dips
+        this.tweens.killTweensOf(this.hook);
+        this.tweens.add({
+            targets: this.hook,
+            y: this.hook.y + 8,
+            angle: 18,
+            duration: 110,
+            yoyo: true,
+            repeat: 3,
+            onComplete: () => {
+                this.hook.setAngle(0);
+                this.startReaction();
+            }
+        });
+
+    }
+
+    // ---------------------------------------------------------
+    // Reaction catch minigame
+    // ---------------------------------------------------------
+
+    startReaction() {
+
+        this.state = "minigame";
+        this.setInstruction("");
+
+        const zone = ZONES[this.currentZone];
+
+        // Place the green catch zone somewhere on the bar
+        this.catchZone.width = zone.catchWidth;
+        this.catchZone.setFillStyle(zone.color);
+        const half = zone.catchWidth / 2;
+        this.zoneCenter = Phaser.Math.Between(BAR_LEFT + half + 10, BAR_RIGHT - half - 10);
+        this.catchZone.x = this.zoneCenter;
+
+        this.reactionMarker.x = BAR_LEFT;
+        this.markerDir = 1;
+        this.markerSpeed = zone.markerSpeed;
+
+        this.reactionGroup.setVisible(true);
+
+        // Auto-miss if the player freezes
+        this.reactionTimer = this.time.delayedCall(3200, () => {
+            if (this.state === "minigame") {
+                this.resolveMiss();
+            }
+        });
+
+    }
+
+    lockReaction() {
+
+        if (this.reactionTimer) {
+            this.reactionTimer.remove();
+            this.reactionTimer = null;
+        }
+
+        this.reactionGroup.setVisible(false);
+        this.state = "resolving";
+
+        const half = this.catchZone.width / 2;
+        const inZone = Math.abs(this.reactionMarker.x - this.zoneCenter) <= half;
+
+        if (inZone) {
+            this.resolveCatch();
+        } else {
+            this.resolveMiss();
+        }
+
+    }
+
+    resolveMiss() {
+
+        this.reactionGroup.setVisible(false);
+        this.state = "resolving";
+
+        this.combo = 0;
+        this.updateCombo();
+
+        this.lives -= 1;
+        this.updateLives();
+
+        AudioManager.miss();
+
+        this.clearBiteShadow(true);
+
+        this.retractLine(() => {
+
+            if (this.lives <= 0) {
+                this.showFloating("🐟 It got away!", 0xD9534F, () => this.failDay("The fish won today!"));
+            } else {
+                this.showFloating("🐟 It got away!", 0xD9534F, () => this.readyNextCast());
+            }
 
         });
 
     }
 
-}
+    clearBiteShadow(dartAway) {
 
-createPortal(){
-
-    this.portal = this.add.image(
-
-        240,
-
-        120,
-
-        "cloudPortal"
-
-    );
-
-    this.portal.setScale(0);
-
-    this.portal.setDepth(50);
-
-}
-
-    castFishingLine(targetX, targetY) {
-        if (this.isFishing) {
-
+        if (!this.biteShadow) {
             return;
+        }
+
+        const shadow = this.biteShadow;
+        this.biteShadow = null;
+        this.tweens.killTweensOf(shadow);
+
+        if (dartAway) {
+            // Startled fish flees
+            this.tweens.add({
+                targets: shadow,
+                x: shadow.x + Phaser.Math.Between(120, 200),
+                y: shadow.y + 20,
+                alpha: 0,
+                duration: 450,
+                ease: "Sine.easeIn",
+                onComplete: () => shadow.destroy()
+            });
+        } else {
+            this.tweens.add({
+                targets: shadow,
+                alpha: 0,
+                duration: 250,
+                onComplete: () => shadow.destroy()
+            });
+        }
+
+    }
+
+    resolveCatch() {
+
+        const zone = ZONES[this.currentZone];
+
+        this.clearBiteShadow(false);
+
+        // A good catch always lands one of the items still on today's list
+        const remaining = GameData.shoppingList.filter(
+            (i) => !GameData.collectedItems.includes(i.name)
+        );
+
+        if (remaining.length === 0) {
+            this.retractLine(() => this.checkWinCondition());
+            return;
+        }
+
+        const item = Phaser.Utils.Array.GetRandom(remaining);
+
+        this.retractLine(() => {
+
+            GameData.collectedItems.push(item.name);
+            GameData.totalCaught += 1;
+
+            this.combo += 1;
+            if (this.combo > GameData.bestCombo) {
+                GameData.bestCombo = this.combo;
+            }
+            this.updateCombo();
+
+            // Immediate skill reward: zone bonus + combo bonus
+            const bonus = zone.bonus + (this.combo - 1) * 2;
+            GameData.coins += bonus;
+            GameData.save();
+
+            AudioManager.success();
+            this.cameras.main.shake(160, 0.004);
+
+            this.shoppingUI.updateList();
+            this.showCoinBurst(bonus);
+
+            this.shoppingUI.showCatchPopup(item, true, "", () => this.checkWinCondition());
+
+        });
+
+    }
+
+    readyNextCast() {
+
+        if (this.state === "won") {
+            return;
+        }
+
+        this.hook.setVisible(false);
+        this.hook.setAngle(0);
+        this.state = "idle";
+        this.setInstruction("Hold anywhere to charge power,\nrelease to cast!");
+
+    }
+
+    checkWinCondition() {
+
+        if (GameData.collectedItems.length === GameData.shoppingList.length) {
+
+            this.state = "won";
+
+            if (this.timerEvent) {
+                this.timerEvent.remove();
+                this.timerEvent = null;
+            }
+
+            // Speed bonus: leftover seconds become coins
+            const timeBonus = Math.max(0, this.timeLeft);
+            if (timeBonus > 0) {
+                GameData.coins += timeBonus;
+                this.showCoinBurst(timeBonus);
+            }
+
+            GameData.save();
+
+            AudioManager.win();
+            this.cameras.main.flash(300, 255, 255, 200);
+
+            this.shoppingUI.showWinPopup(() => {
+                this.cameras.main.fadeOut(400, 0, 0, 0);
+                this.time.delayedCall(400, () => this.scene.start("CloudMarketScene"));
+            });
+
+        } else {
+
+            this.readyNextCast();
 
         }
 
-        this.isFishing = true;
+    }
 
-        this.lineGraphics.clear();
+    // ---------------------------------------------------------
+    // Line + effects
+    // ---------------------------------------------------------
+
+    retractLine(onDone) {
 
         const tip = this.rod.getTipPosition();
 
-const startX = tip.x;
-const startY = tip.y;
+        this.tweens.killTweensOf(this.hook);
+        this.tweens.add({
+            targets: this.hook,
+            x: tip.x,
+            y: tip.y,
+            duration: 350,
+            ease: "Sine.easeIn",
+            onComplete: () => {
+                this.lineGraphics.clear();
+                if (onDone) {
+                    onDone();
+                }
+            }
+        });
 
-        this.hook.setPosition(startX, startY);
-        this.hook.setVisible(true);
+    }
+
+    drawLine() {
+
+        const tip = this.rod.getTipPosition();
+        this.lineGraphics.clear();
+        this.lineGraphics.lineStyle(1, 0xE8E2D6, 0.9);
+        this.lineGraphics.beginPath();
+        this.lineGraphics.moveTo(tip.x, tip.y);
+        this.lineGraphics.lineTo(this.hook.x, this.hook.y);
+        this.lineGraphics.strokePath();
+
+    }
+
+    createSplash(x, y) {
+
+        AudioManager.splash();
+
+        const splash = this.add.circle(x, y, 8, 0xFFFFFF).setAlpha(0.8);
+        this.tweens.add({
+            targets: splash,
+            scale: 3,
+            alpha: 0,
+            duration: 350,
+            onComplete: () => splash.destroy()
+        });
+
+        this.burstSparkles(x, y, 6);
+
+    }
+
+    burstSparkles(x, y, count) {
+
+        for (let i = 0; i < count; i++) {
+            const sparkle = this.add.circle(x, y, Phaser.Math.Between(2, 4), 0xFFF799);
+            this.tweens.add({
+                targets: sparkle,
+                x: x + Phaser.Math.Between(-30, 30),
+                y: y + Phaser.Math.Between(-30, 30),
+                alpha: 0,
+                duration: 600,
+                delay: i * 30,
+                onComplete: () => sparkle.destroy()
+            });
+        }
+
+    }
+
+    showCoinBurst(amount) {
+
+        AudioManager.coin();
+
+        const t = this.add.text(240, 300, `+${amount} 🪙`, {
+            fontFamily: "Arial",
+            fontSize: "30px",
+            fontStyle: "bold",
+            color: "#FFD700",
+            stroke: "#5A3E1B",
+            strokeThickness: 5
+        }).setOrigin(0.5).setDepth(70);
 
         this.tweens.add({
-
-            targets: this.hook,
-
-            x: targetX,
-
-            y: targetY,
-
-            duration: 450,
-
+            targets: t,
+            y: 250,
+            alpha: 0,
+            duration: 1100,
             ease: "Sine.easeOut",
+            onComplete: () => t.destroy()
+        });
 
-            onUpdate: () => {
+    }
 
-                this.lineGraphics.clear();
+    showFloating(message, color, onDone) {
 
-                this.lineGraphics.lineStyle(
-                    1,
-                    0xE8E2D6,
-                    0.9
-                );
+        const t = this.add.text(240, 320, message, {
+            fontFamily: "Arial",
+            fontSize: "26px",
+            fontStyle: "bold",
+            color: "#ffffff",
+            backgroundColor: "#00000055",
+            padding: { left: 14, right: 14, top: 8, bottom: 8 }
+        }).setOrigin(0.5).setDepth(70);
 
-                this.lineGraphics.beginPath();
+        this.time.delayedCall(1100, () => {
+            t.destroy();
+            if (onDone) {
+                onDone();
+            }
+        });
 
-                this.lineGraphics.moveTo(
-                    startX,
-                    startY
-                );
+    }
 
-                this.lineGraphics.lineTo(
-                    this.hook.x,
-                    this.hook.y
-                );
+    // ---------------------------------------------------------
+    // Update loop drives the two meters + the line
+    // ---------------------------------------------------------
 
-                this.lineGraphics.strokePath();
+    update(time, delta) {
 
-            },
+        const dt = delta / 1000;
 
-            onComplete: () => {
+        if (this.state === "charging") {
 
-                this.createSplash(targetX, targetY);
-
-                this.startWaitingForBite();
-
+            // Oscillate 0 -> 1 -> 0
+            this.charge += this.chargeDir * dt * 1.4;
+            if (this.charge >= 1) {
+                this.charge = 1;
+                this.chargeDir = -1;
+            } else if (this.charge <= 0) {
+                this.charge = 0;
+                this.chargeDir = 1;
             }
 
-        });
+            this.powerFill.width = 300 * this.charge;
 
-    }
-
-    createSplash(x,y){
-
-    const splash=this.add.circle(
-
-        x,
-        y,
-
-        8,
-
-        0xFFFFFF
-
-    );
-
-    splash.setAlpha(0.8);
-
-    this.tweens.add({
-
-        targets:splash,
-
-        scale:3,
-
-        alpha:0,
-
-        duration:350,
-
-        onComplete:()=>{
-
-            splash.destroy();
+            // Green -> amber -> pink as power grows
+            let c = 0x7ED957;
+            if (this.charge >= 0.75) {
+                c = 0xFF7BAC;
+            } else if (this.charge >= 0.4) {
+                c = 0xFFC93C;
+            }
+            this.powerFill.setFillStyle(c);
 
         }
 
-    });
+        if (this.state === "minigame") {
 
-    for(let i=0;i<6;i++){
-
-        const sparkle=this.add.circle(
-
-            x,
-
-            y,
-
-            2,
-
-            0xFFF799
-
-        );
-
-        this.tweens.add({
-
-            targets:sparkle,
-
-            x:x+Phaser.Math.Between(-20,20),
-
-            y:y+Phaser.Math.Between(-20,20),
-
-            alpha:0,
-
-            duration:500,
-
-            onComplete:()=>sparkle.destroy()
-
-        });
-
-    }
-
-}
-
-    startWaitingForBite() {
-
-        this.waitingForBite = true;
-
-        const waitTime = Phaser.Math.Between(
-            1500,
-            3500
-        );
-
-        this.time.delayedCall(waitTime, () => {
-
-            this.showBite();
-
-        });
-
-    }
-    showBite() {
-
-    // Stop any previous animation on the bobber
-    this.tweens.killTweensOf(this.hook);
-
-    this.waitingForBite = true;
-
-    this.tweens.add({
-
-        targets: this.hook,
-
-        y: this.hook.y + 8,
-
-        angle: 18,
-
-        duration: 120,
-
-        yoyo: true,
-
-        repeat: 4,
-
-        onComplete: () => {
-
-            // Reset bobber angle
-            this.hook.setAngle(0);
-
-            // Gentle floating while waiting for player to reel in
-            this.tweens.add({
-
-                targets: this.hook,
-
-                y: this.hook.y - 3,
-
-                duration: 900,
-
-                yoyo: true,
-
-                repeat: -1,
-
-                ease: "Sine.easeInOut"
-
-            });
+            this.reactionMarker.x += this.markerDir * this.markerSpeed * dt;
+            if (this.reactionMarker.x >= BAR_RIGHT) {
+                this.reactionMarker.x = BAR_RIGHT;
+                this.markerDir = -1;
+            } else if (this.reactionMarker.x <= BAR_LEFT) {
+                this.reactionMarker.x = BAR_LEFT;
+                this.markerDir = 1;
+            }
 
         }
 
-    });
+        // Keep the line attached whenever the bobber is out
+        if (this.hook && this.hook.visible) {
+            this.drawLine();
+        }
 
-}
+    }
 
 }
