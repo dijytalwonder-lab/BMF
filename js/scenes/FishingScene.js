@@ -85,9 +85,7 @@ export default class FishingScene extends Phaser.Scene {
         this.lineGraphics = this.fishingManager.createFishingLine();
         this.lineGraphics.setDepth(40);
 
-        const bobber = new Bobber(this);
-        this.bobber = bobber;
-        this.hook = bobber.create();
+        this.hook = new Bobber(this).create();
         this.hook.setDepth(41);
 
         this.createHud();
@@ -199,9 +197,11 @@ export default class FishingScene extends Phaser.Scene {
 
     createHud() {
 
-        // Instruction sits BELOW the shopping panel (was overlapping before)
+        // Instruction sits BELOW the shopping panel, which varies in height
+        const belowPanel = (this.shoppingUI.bottomY || 150) + 24;
+
         this.instruction = this.add.text(
-            240, 195, "",
+            240, belowPanel, "",
             {
                 fontFamily: "Arial",
                 fontSize: "20px",
@@ -213,7 +213,7 @@ export default class FishingScene extends Phaser.Scene {
         ).setOrigin(0.5).setDepth(60);
 
         this.comboText = this.add.text(
-            240, 228, "",
+            240, belowPanel + 34, "",
             {
                 fontFamily: "Arial",
                 fontSize: "22px",

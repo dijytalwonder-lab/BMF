@@ -54,7 +54,4 @@ const config = {
 
 };
 
-const game = new Phaser.Game(config);
-
-// Debug hook (harmless; handy for testing scene state in the console)
-window.game = game;
+new Phaser.Game(config);

@@ -17,11 +17,21 @@ export default class ShoppingUI {
         // Sits above the drifting clouds so the objective stays readable
         const DEPTH = 100;
 
+        // Panel grows to fit the day's list (3-5 items)
+        const count = GameData.shoppingList.length;
+        const rowH = 28;
+        const firstRowY = 74;
+        const lastRowY = firstRowY + (count - 1) * rowH;
+
+        const panelTop = 26;
+        const panelBottom = lastRowY + 20;
+        this.bottomY = panelBottom;
+
         const panel = this.scene.add.rectangle(
             240,
-            95,
-            270,
-            140,
+            (panelTop + panelBottom) / 2,
+            274,
+            panelBottom - panelTop,
             0xFFFDF5,
             1
         );
@@ -31,7 +41,7 @@ export default class ShoppingUI {
 
         this.scene.add.text(
             240,
-            45,
+            44,
             "🧺 Shopping List",
             {
                 fontFamily: "Arial",
@@ -46,13 +56,13 @@ export default class ShoppingUI {
             const text = this.scene.add.text(
 
                 125,
-                75 + index * 30,
+                firstRowY + index * rowH,
 
                 `⬜ ${item.emoji} ${item.name}`,
 
                 {
                     fontFamily: "Arial",
-                    fontSize: "20px",
+                    fontSize: "19px",
                     color: "#333333"
                 }
 

@@ -61,34 +61,4 @@ export default class FishingRod {
 
     }
 
-    setVisible(value) {
-
-    this.rod.setVisible(value);
-
-}
-
-setAlpha(value) {
-
-    this.rod.setAlpha(value);
-
-}
-
-playAppearAnimation() {
-
-    this.rod.setVisible(true);
-
-    this.rod.setAlpha(0);
-
-    this.scene.tweens.add({
-
-        targets: this.rod,
-
-        alpha: 1,
-
-        duration: 350
-
-    });
-
-}
-
 }
