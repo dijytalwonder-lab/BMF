@@ -1,4 +1,4 @@
-package com.bunny.fishing;
+package com.dijytal.bunnysmagicalfishing;
 
 import com.getcapacitor.BridgeActivity;
 
