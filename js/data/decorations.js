@@ -7,7 +7,7 @@ const DECORATIONS = [
         name: "Flower Pot",
         emoji: "🌷",
         cost: 15,
-        place: { x: 85, y: 560, size: "42px" }
+        place: { x: 120, y: 575, size: "40px" }
     },
 
     {
@@ -15,7 +15,7 @@ const DECORATIONS = [
         name: "Chair",
         emoji: "🪑",
         cost: 25,
-        place: { x: 250, y: 610, size: "42px" }
+        place: { x: 350, y: 560, size: "44px" }
     },
 
     {
@@ -23,7 +23,7 @@ const DECORATIONS = [
         name: "Window",
         emoji: "🪟",
         cost: 40,
-        place: { x: 140, y: 545, size: "42px" }
+        place: { x: 115, y: 475, size: "38px" }
     },
 
     {
@@ -31,7 +31,7 @@ const DECORATIONS = [
         name: "Flower Garden",
         emoji: "🌼",
         cost: 60,
-        place: { x: 185, y: 690, size: "46px" }
+        place: { x: 190, y: 615, size: "44px" }
     },
 
     {
@@ -39,7 +39,7 @@ const DECORATIONS = [
         name: "Fairy Lantern",
         emoji: "🏮",
         cost: 90,
-        place: { x: 320, y: 545, size: "40px" }
+        place: { x: 365, y: 475, size: "38px" }
     },
 
     {
@@ -47,7 +47,7 @@ const DECORATIONS = [
         name: "Fountain",
         emoji: "⛲",
         cost: 140,
-        place: { x: 360, y: 650, size: "48px" }
+        place: { x: 295, y: 615, size: "46px" }
     }
 
 ];

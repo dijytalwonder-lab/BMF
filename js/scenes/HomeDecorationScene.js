@@ -13,33 +13,22 @@ export default class HomeDecorationScene extends Phaser.Scene {
 
         this.cameras.main.fadeIn(500, 255, 255, 255);
 
-        // Background
-        this.add.image(
-            240,
-            400,
-            "homeBackground"
-        );
+        // Outdoor scene behind
+        const outdoor = this.add.image(240, 400, "homeBackground");
+        outdoor.setScale(Math.max(480 / outdoor.width, 800 / outdoor.height));
+        outdoor.setDepth(0);
 
-        // Tree
-        this.add.image(
-            330,
-            470,
-            "magicalTree"
-        ).setScale(0.32);
+        // House-interior cutout floating on top
+        const house = this.add.image(240, 385, "houseInside");
+        house.setScale(Math.min(480 / house.width, 800 / house.height));
+        house.setDepth(1);
 
-        // House
+        // Bunny standing on the ground floor
         this.add.image(
-            120,
-            610,
-            "bunnyHouse"
-        ).setScale(0.18);
-
-        // Bunny
-        this.add.image(
-            220,
-            620,
+            235,
+            560,
             "bunny"
-        ).setScale(0.20);
+        ).setScale(0.16).setDepth(5);
 
         this.add.text(
 
@@ -53,11 +42,13 @@ export default class HomeDecorationScene extends Phaser.Scene {
                 fontFamily: "Arial",
                 fontSize: "34px",
                 color: "#4A3A24",
-                fontStyle: "bold"
+                fontStyle: "bold",
+                stroke: "#FFFFFF",
+                strokeThickness: 4
 
             }
 
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setDepth(10);
 
         this.placeDecorations();
 
@@ -80,9 +71,11 @@ export default class HomeDecorationScene extends Phaser.Scene {
                 {
                     fontFamily: "Arial",
                     fontSize: "16px",
-                    color: "#5A3E1B"
+                    color: "#5A3E1B",
+                    stroke: "#FFFFFF",
+                    strokeThickness: 3
                 }
-            ).setOrigin(0.5);
+            ).setOrigin(0.5).setDepth(10);
         }
 
         owned.forEach((decoration) => {
@@ -97,7 +90,7 @@ export default class HomeDecorationScene extends Phaser.Scene {
                 {
                     fontSize: decoration.place.size
                 }
-            ).setOrigin(0.5);
+            ).setOrigin(0.5).setDepth(6);
 
             obj.setInteractive({ useHandCursor: true, draggable: true });
             this.input.setDraggable(obj);

@@ -37,6 +37,12 @@ export default class LoadingScene extends Phaser.Scene {
             "images/house/bunny_house.png"
         );
 
+        // House interior (decoration scene background)
+        this.load.image(
+            "houseInside",
+            "images/house/house_inside.png"
+        );
+
         // Tree
         this.load.image(
             "magicalTree",
