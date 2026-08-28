@@ -6,6 +6,12 @@ dist/
 
 # Android build artifacts
 *.apk
+*.aab
+
+# Android signing secrets (NEVER commit these)
+keystore.properties
+*.keystore
+*.jks
 
 # Logs
 npm-debug.log*
