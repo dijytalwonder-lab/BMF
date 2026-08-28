@@ -43,8 +43,7 @@ async function featureGraphic() {
             <rect x="0" y="0" width="640" height="${H}" fill="url(#fade)"/>
             <text x="60" y="205" font-family="Arial, sans-serif" font-size="74" font-weight="bold" fill="#4A3A24">Bunny's</text>
             <text x="60" y="285" font-family="Arial, sans-serif" font-size="74" font-weight="bold" fill="#4A3A24">Magical Fishing</text>
-            <text x="62" y="345" font-family="Arial, sans-serif" font-size="30" fill="#6b5c46">A cozy fishing &amp; decorating adventure</text>
-            <text x="62" y="392" font-family="Arial, sans-serif" font-size="26" font-weight="bold" fill="#3A9D23">No ads &#183; No internet needed &#183; Free</text>
+            <text x="62" y="350" font-family="Arial, sans-serif" font-size="32" fill="#6b5c46">A cozy fishing &amp; decorating adventure</text>
         </svg>`
     );
 
